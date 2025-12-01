@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace GridlockDesigner;
 
@@ -143,58 +144,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void BoardGrid_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (e.OriginalSource is FrameworkElement element &&
-            element.DataContext is string cellText)
-        {
-            int index = BoardGrid.Items.IndexOf(cellText);
-            if (index >= 0)
-            {
-                int row = index / 6;
-                int col = index % 6;
-                HandleCellClick(row, col);
-            }
-        }
-    }
-
-    private void HandleCellClick(int row, int col)
-    {
-        if (string.IsNullOrEmpty(_selectedVehicleType)) return;
-
-        var parts = _selectedVehicleType.Split(',');
-        char orientation = parts[0][0];
-        int length = int.Parse(parts[1]);
-        bool isAmbulance = _selectedVehicleType == "H,2" && _vehicles.All(v => v.Color != "Red" || v.Orientation != 'H');
-
-        // Check if ambulance is on row 3 and col < 5
-        if (isAmbulance && (row != 2 || col > 3))
-        {
-            MessageBox.Show("Ambulance must be on row 3 (C) and column less than 5");
-            return;
-        }
-
-        // Check if placement is valid
-        if (!CanPlaceVehicle(row, col, orientation, length))
-        {
-            MessageBox.Show("Cannot place vehicle here - overlaps with existing vehicle or out of bounds");
-            return;
-        }
-
-        var vehicle = new Vehicle
-        {
-            Orientation = orientation,
-            Length = length,
-            Row = row,
-            Col = col,
-            Color = isAmbulance ? "Red" : C64Colors[2] // Start with Red for ambulance, Cyan for others
-        };
-
-        _vehicles.Add(vehicle);
-        RefreshBoardDisplay();
-    }
-
-    private bool CanPlaceVehicle(int row, int col, char orientation, int length)
+    private bool CanPlaceVehicle(int row, int col, char orientation, int length, Vehicle? excludedVehicle = null)
     {
         var tempVehicle = new Vehicle { Row = row, Col = col, Orientation = orientation, Length = length };
         var occupiedCells = GetOccupiedCells(tempVehicle);
@@ -202,7 +152,16 @@ public partial class MainWindow : Window
         foreach (var (r, c) in occupiedCells)
         {
             if (r < 0 || r >= 6 || c < 0 || c >= 6) return false;
-            if (_vehicles.Any(v => GetOccupiedCells(v).Any(cell => cell.row == r && cell.col == c))) return false;
+
+            // Check for collisions with other vehicles (excluding the specified one)
+            var vehiclesToCheck = _vehicles;
+            if (excludedVehicle != null)
+            {
+                vehiclesToCheck = _vehicles.Where(v => v != excludedVehicle).ToList();
+            }
+
+            if (vehiclesToCheck.Any(v => GetOccupiedCells(v).Any(cell => cell.row == r && cell.col == c)))
+                return false;
         }
 
         return true;
@@ -224,56 +183,87 @@ public partial class MainWindow : Window
         return cells;
     }
 
+    private void VehicleCanvas_Drop(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetData(typeof(Vehicle)) is Vehicle vehicle)
+        {
+            var position = e.GetPosition(VehicleCanvas);
+            int col = (int)(position.X / 80);
+            int row = (int)(position.Y / 80);
+
+            // Check bounds
+            if (row < 0 || row >= 6 || col < 0 || col >= 6)
+            {
+                RestoreDraggedVehicle(vehicle);
+                return;
+            }
+
+            // Check ambulance placement rules
+            if (vehicle.Color == "Red" && vehicle.Orientation == 'H' && (row != 2 || col > 3))
+            {
+                MessageBox.Show("Ambulance must be placed on row C (3) and column less than 5");
+                RestoreDraggedVehicle(vehicle);
+                return;
+            }
+
+            // Check if placement is valid
+            if (!CanPlaceVehicle(row, col, vehicle.Orientation, vehicle.Length, vehicle))
+            {
+                MessageBox.Show("Cannot place vehicle here - overlaps with existing vehicle or out of bounds");
+                RestoreDraggedVehicle(vehicle);
+                return;
+            }
+
+            // Update vehicle position
+            vehicle.Row = row;
+            vehicle.Col = col;
+
+            // If this is a new vehicle (not already in collection), add it
+            if (!_vehicles.Contains(vehicle))
+            {
+                _vehicles.Add(vehicle);
+            }
+
+            RefreshBoardDisplay();
+        }
+    }
+
+    private void RestoreDraggedVehicle(Vehicle vehicle)
+    {
+        if (!_vehicles.Contains(vehicle))
+        {
+            _vehicles.Add(vehicle);
+        }
+        RefreshBoardDisplay();
+    }
+
     private void RefreshBoardDisplay()
     {
-        var cells = new List<CellViewModel>();
+        // Clear the vehicle canvas
+        VehicleCanvas.Children.Clear();
 
-        // Create all cells
+        // Create base grid cells (just borders and exit marker)
+        var baseCells = new List<CellViewModel>();
         for (int row = 0; row < 6; row++)
         {
             for (int col = 0; col < 6; col++)
             {
-                cells.Add(new CellViewModel
+                baseCells.Add(new CellViewModel
                 {
                     Row = row,
                     Col = col,
-                    IsExit = (row == 2 && col == 5) // C6 is the exit
+                    IsExit = (row == 2 && col == 5)
                 });
             }
         }
+        BaseGrid.ItemsSource = baseCells;
 
-        // Clear previous vehicle assignments
-        foreach (var cell in cells)
-        {
-            cell.VehicleId = string.Empty;
-            cell.Color = "Transparent";
-            cell.Content = "";
-            cell.RotateText = false;
-        }
-
-        // Mark occupied cells with vehicle colors
+        // Add vehicles to the canvas
         foreach (var vehicle in _vehicles)
         {
-            var occupiedCells = GetOccupiedCells(vehicle);
-            var vehicleColor = GetVehicleColor(vehicle.Color);
-
-            foreach (var (row, col) in occupiedCells)
-            {
-                var cell = cells.FirstOrDefault(c => c.Row == row && c.Col == col);
-                if (cell != null)
-                {
-                    cell.VehicleId = vehicle.Id;
-                    cell.Color = vehicleColor;
-
-                    // Get display content and rotation
-                    var (content, rotate) = GetVehicleDisplay(vehicle, row, col);
-                    cell.Content = content;
-                    cell.RotateText = rotate;
-                }
-            }
+            var vehicleVisual = CreateVehicleVisual(vehicle);
+            VehicleCanvas.Children.Add(vehicleVisual);
         }
-
-        BoardGrid.ItemsSource = cells;
     }
 
     private static string GetVehicleColor(string colorName)
@@ -294,24 +284,6 @@ public partial class MainWindow : Window
         };
     }
 
-    private (string content, bool rotate) GetVehicleDisplay(Vehicle vehicle, int row, int col)
-    {
-        // Only show text on the first cell of the vehicle
-        bool isFirstCell = (vehicle.Orientation == 'H' && col == vehicle.Col) ||
-                          (vehicle.Orientation == 'V' && row == vehicle.Row);
-
-        if (isFirstCell)
-        {
-            string text = vehicle.Color == "Red" ? "Ambulance" :
-                         (vehicle.Length == 3 ? "Truck" : "Car");
-
-            // Return both content and whether it should be rotated
-            return (text, vehicle.Orientation == 'V');
-        }
-
-        return ("", false);
-    }
-
     private void BtnSolve_Click(object sender, RoutedEventArgs e)
     {
         var ambulance = _vehicles.FirstOrDefault(v => v.Color == "Red" && v.Orientation == 'H');
@@ -329,11 +301,15 @@ public partial class MainWindow : Window
             txtSolutionInfo.Text = "No solution found for this puzzle.";
             lstSolution.ItemsSource = null;
             _solutionItems.Clear();
+            btnPrev.IsEnabled = false;
+            btnNext.IsEnabled = false;
         }
         else
         {
             DisplaySolution(_currentSolution);
-            txtSolutionInfo.Text = $"Solution found in {_currentSolution.Count} compressed moves.";
+            txtSolutionInfo.Text = $"Solution found in {_currentSolution.Count} moves.";
+            btnPrev.IsEnabled = true;
+            btnNext.IsEnabled = _currentSolution.Count > 0;
         }
     }
 
@@ -388,13 +364,21 @@ public partial class MainWindow : Window
     private void BtnResetView_Click(object sender, RoutedEventArgs e)
     {
         // Reload original vehicle positions
-        var currentPuzzle = cmbSavedPuzzles.SelectedItem as BoardState;
-        if (currentPuzzle != null)
+        if (cmbSavedPuzzles.SelectedItem is BoardState currentPuzzle)
         {
             _vehicles = currentPuzzle.Vehicles.Select(v => v.Clone()).ToList();
             RefreshBoardDisplay();
             _currentMoveIndex = -1;
-            UpdateSolutionHighlight(); // Add this line
+
+            // Clear the solution - this is the key fix
+            _currentSolution = null;
+            _solutionItems.Clear();
+            lstSolution.ItemsSource = null;
+            txtSolutionInfo.Text = "Puzzle reset. Click 'Solve Puzzle' to find a new solution.";
+
+            // Also disable navigation buttons
+            btnPrev.IsEnabled = false;
+            btnNext.IsEnabled = false;
         }
     }
 
@@ -484,15 +468,19 @@ public partial class MainWindow : Window
 
             if (vehicle != null)
             {
-                // Store the vehicle for global cursor management
-                _draggedVehicle = vehicle;
+                // Set cursor for drag operation
+                Mouse.OverrideCursor = Cursors.Cross;
 
-                DataObject dragData = new DataObject(typeof(Vehicle), vehicle);
-                DragDrop.DoDragDrop(border, dragData, DragDropEffects.Copy);
-
-                // Clean up
-                _draggedVehicle = null;
-                Mouse.OverrideCursor = null;
+                try
+                {
+                    DataObject dragData = new(typeof(Vehicle), vehicle);
+                    DragDrop.DoDragDrop(border, dragData, DragDropEffects.Move);
+                }
+                finally
+                {
+                    // Always reset cursor, even if drag fails
+                    Mouse.OverrideCursor = null;
+                }
             }
         }
     }
@@ -624,28 +612,14 @@ public partial class MainWindow : Window
 
     private void Cell_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is Border border && border.DataContext is CellViewModel cell)
-        {
-            if (!string.IsNullOrEmpty(cell.VehicleId))
-            {
-                // Find the vehicle that occupies this cell
-                var vehicle = _vehicles.FirstOrDefault(v => v.Id == cell.VehicleId);
-                if (vehicle != null)
-                {
-                    // Cycle to next color
-                    vehicle.Color = GetNextColor(vehicle.Color);
-
-                    // Update all cells for this vehicle
-                    RefreshBoardDisplay();
-                }
-            }
-        }
+        // This now only handles color cycling on existing vehicles
+        // Vehicle placement is handled entirely by drag-and-drop
         e.Handled = true;
     }
 
     private static string GetNextColor(string currentColor)
     {
-        var colors = new[] { "Red", "Cyan", "Yellow", "Purple", "Green", "Blue", "Orange", "Brown", "Black", "White" };
+        var colors = new[] { "Cyan", "Yellow", "Purple", "Green", "Blue", "Orange", "Brown", "Black", "White" };
         var currentIndex = Array.IndexOf(colors, currentColor);
         var nextIndex = (currentIndex + 1) % colors.Length;
         return colors[nextIndex];
@@ -696,5 +670,242 @@ public partial class MainWindow : Window
         }
 
         lstSolution.ItemsSource = _solutionItems;
+    }
+
+    private static Grid CreateCrossIcon()
+    {
+        // Create a container for the cross
+        var crossContainer = new Grid
+        {
+            Width = 20,
+            Height = 20,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        // Red background circle
+        var background = new Ellipse
+        {
+            Fill = Brushes.Red,
+            Width = 20,
+            Height = 20
+        };
+
+        // Horizontal white bar
+        var horizontalBar = new Rectangle
+        {
+            Fill = Brushes.White,
+            Width = 12,
+            Height = 3,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        // Vertical white bar
+        var verticalBar = new Rectangle
+        {
+            Fill = Brushes.White,
+            Width = 3,
+            Height = 12,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        crossContainer.Children.Add(background);
+        crossContainer.Children.Add(horizontalBar);
+        crossContainer.Children.Add(verticalBar);
+
+        return crossContainer;
+    }
+    private Border CreateVehicleVisual(Vehicle vehicle)
+    {
+        var vehicleBorder = new Border();
+        string vehicleColor = GetVehicleColor(vehicle.Color);
+
+        // Set size based on orientation
+        if (vehicle.Orientation == 'H')
+        {
+            vehicleBorder.Width = vehicle.Length * 80;
+            vehicleBorder.Height = 80;
+        }
+        else
+        {
+            vehicleBorder.Width = 80;
+            vehicleBorder.Height = vehicle.Length * 80;
+        }
+
+        // Special handling for ambulance - white background
+        if (vehicle.Color == "Red" && vehicle.Orientation == 'H')
+        {
+            vehicleBorder.Background = Brushes.LightGray;
+            vehicleColor = "#D3D3D3"; // White for text color determination
+        }
+        else
+        {
+            // Normal vehicle appearance
+            vehicleBorder.Background = new SolidColorBrush(
+                (Color)ColorConverter.ConvertFromString(vehicleColor));
+        }
+
+        vehicleBorder.BorderBrush = Brushes.Black;
+        vehicleBorder.BorderThickness = new Thickness(1);
+        vehicleBorder.CornerRadius = new CornerRadius(3);
+
+        // Create container for icon and text
+        var container = new StackPanel
+        {
+            Orientation = vehicle.Orientation == 'H' ? Orientation.Horizontal : Orientation.Vertical,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        // Add tooltips and add red cross icon for ambulances
+        if (!(vehicle.Color == "Red" && vehicle.Orientation == 'H'))
+        {
+            vehicleBorder.ToolTip = "Left-click to move, Right-click to change color";
+        }
+        else
+        {
+            var crossIcon = CreateCrossIcon();
+            container.Children.Add(crossIcon);
+            vehicleBorder.ToolTip = "Left-click to move (Color cannot be changed)";
+        }
+
+        // Add text label
+        var textBlock = new TextBlock
+        {
+            Text = vehicle.Color == "Red" ? "Ambulance" :
+                   (vehicle.Length == 3 ? "Truck" : "Car"),
+            Foreground = GetVehicleTextColor(vehicleColor),
+            FontWeight = FontWeights.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontSize = 12,
+            TextAlignment = TextAlignment.Center,
+            Margin = vehicle.Color == "Red" ? new Thickness(5, 0, 0, 0) : new Thickness(0) // Space between icon and text
+        };
+
+        container.Children.Add(textBlock);
+
+        // For vertical vehicles, we need to handle rotation differently
+        if (vehicle.Orientation == 'V')
+        {
+            textBlock.RenderTransformOrigin = new Point(0.5, 0.5);
+            textBlock.RenderTransform = new RotateTransform(90);
+        }
+
+        vehicleBorder.Child = container;
+
+        // Set position
+        Canvas.SetLeft(vehicleBorder, vehicle.Col * 80);
+        Canvas.SetTop(vehicleBorder, vehicle.Row * 80);
+
+        // Add right-click handler for color cycling (non-ambulance only)
+        if (!(vehicle.Color == "Red" && vehicle.Orientation == 'H'))
+        {
+            vehicleBorder.MouseRightButtonDown += (s, e) =>
+            {
+                CycleVehicleColor(vehicle);
+                e.Handled = true;
+            };
+        }
+
+        // Add left-click handler for dragging existing vehicles
+        vehicleBorder.MouseLeftButtonDown += (s, e) =>
+        {
+            StartVehicleDrag(vehicle, vehicleBorder);
+            e.Handled = true;
+        };
+
+        // Store vehicle ID for reference
+        vehicleBorder.Tag = vehicle.Id;
+
+        return vehicleBorder;
+    }
+
+    private void VehicleCanvas_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(typeof(Vehicle)))
+        {
+            e.Effects = DragDropEffects.Move;
+            Mouse.OverrideCursor = Cursors.SizeAll;
+        }
+        else
+        {
+            e.Effects = DragDropEffects.None;
+            Mouse.OverrideCursor = Cursors.No;
+        }
+        e.Handled = true;
+    }
+
+    private void VehicleCanvas_DragLeave(object sender, DragEventArgs e)
+    {
+        // Reset cursor when leaving the canvas during drag
+        Mouse.OverrideCursor = null;
+    }
+
+    private void StartVehicleDrag(Vehicle vehicle, FrameworkElement vehicleElement)
+    {
+        // Store the vehicle being dragged
+        _draggedVehicle = vehicle;
+
+        // Store original position in case we need to revert
+        var originalRow = vehicle.Row;
+        var originalCol = vehicle.Col;
+
+        // Remove the vehicle from the board temporarily so it doesn't block placement
+        _vehicles.Remove(vehicle);
+        RefreshBoardDisplay();
+
+        try
+        {
+            // Set cursor for drag operation
+            Mouse.OverrideCursor = Cursors.SizeAll;
+
+            // Start drag operation with the vehicle
+            DataObject dragData = new DataObject(typeof(Vehicle), vehicle);
+            var result = DragDrop.DoDragDrop(vehicleElement, dragData, DragDropEffects.Move);
+
+            // If drag was cancelled or failed, restore the vehicle to original position
+            if (result == DragDropEffects.None)
+            {
+                vehicle.Row = originalRow;
+                vehicle.Col = originalCol;
+                _vehicles.Add(vehicle);
+            }
+        }
+        catch (Exception ex)
+        {
+            // If anything goes wrong, restore the vehicle
+            vehicle.Row = originalRow;
+            vehicle.Col = originalCol;
+            _vehicles.Add(vehicle);
+            Console.WriteLine($"Drag error: {ex.Message}");
+        }
+        finally
+        {
+            // Always reset cursor and cleanup
+            Mouse.OverrideCursor = null;
+            _draggedVehicle = null;
+            RefreshBoardDisplay();
+        }
+    }
+
+    private void CycleVehicleColor(Vehicle vehicle)
+    {
+        // Don't allow color cycling for ambulances
+        if (vehicle.Color == "Red" && vehicle.Orientation == 'H')
+        {
+            return;
+        }
+
+        vehicle.Color = GetNextColor(vehicle.Color);
+        RefreshBoardDisplay();
+    }
+
+    private static Brush GetVehicleTextColor(string colorHex)
+    {
+        var darkColors = new[] { "#000000", "#0000FF", "#FF0000", "#800080", "#A52A2A" };
+        return darkColors.Contains(colorHex) ? Brushes.White : Brushes.Black;
     }
 }
