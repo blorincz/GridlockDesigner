@@ -34,7 +34,7 @@ namespace GridlockDesigner.Data
 
         public void InitializeDatabase()
         {
-            this.Database.EnsureCreated();
+            Database.EnsureCreated();
         }
     }
 }

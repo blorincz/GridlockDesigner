@@ -321,7 +321,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        _currentSolution = _solver.Solve(_vehicles, ambulance.Id);
+        _currentSolution = GridlockSolver.Solve(_vehicles, ambulance.Id);
         _currentMoveIndex = -1;
 
         if (_currentSolution == null)

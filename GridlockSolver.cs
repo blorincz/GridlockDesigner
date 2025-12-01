@@ -1,14 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace GridlockDesigner;
+﻿namespace GridlockDesigner;
 
 using GridlockDesigner.Models;
-
-// GridlockSolver.cs
 using System.Collections.Generic;
 using System.Linq;
 
@@ -85,7 +77,7 @@ public class GridlockSolver
         }
     }
 
-    public List<Move>? Solve(List<Vehicle> vehicles, string ambulanceId)
+    public static List<Move>? Solve(List<Vehicle> vehicles, string ambulanceId)
     {
         var initialState = new SolverBoardState { AmbulanceId = ambulanceId };
         foreach (var v in vehicles)
@@ -130,7 +122,7 @@ public class GridlockSolver
         return null;
     }
 
-    private List<Move> CompressMoves(List<Move> moves)
+    private static List<Move> CompressMoves(List<Move> moves)
     {
         if (moves.Count == 0) return moves;
 
@@ -155,7 +147,7 @@ public class GridlockSolver
         return compressed;
     }
 
-    private List<Move> GetPossibleMoves(SolverBoardState state)
+    private static List<Move> GetPossibleMoves(SolverBoardState state)
     {
         var moves = new List<Move>();
         var grid = state.GetGrid();
@@ -209,7 +201,7 @@ public class GridlockSolver
         return moves;
     }
 
-    private SolverBoardState ApplyMove(SolverBoardState state, Move move)
+    private static SolverBoardState ApplyMove(SolverBoardState state, Move move)
     {
         var vehicle = state.Vehicles[move.VehicleId];
         var directionVector = GetDirectionVector(move.Direction, vehicle.Orientation);
@@ -222,7 +214,7 @@ public class GridlockSolver
         return state;
     }
 
-    private int GetDirectionVector(string direction, char orientation) => direction switch
+    private static int GetDirectionVector(string direction, char orientation) => direction switch
     {
         "left" when orientation == 'H' => -1,
         "right" when orientation == 'H' => 1,
