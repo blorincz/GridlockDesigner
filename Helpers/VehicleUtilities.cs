@@ -1,9 +1,4 @@
 ﻿using GridlockDesigner.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GridlockDesigner.Helpers;
 
@@ -18,7 +13,7 @@ public static class VehicleUtilities
         Vehicle? excludedVehicle = null)
     {
         var tempVehicle = new Vehicle { Row = row, Col = col, Orientation = orientation, Length = length };
-        var occupiedCells = GetOccupiedCells(tempVehicle);
+        var occupiedCells = tempVehicle.GetOccupiedCells();
 
         foreach (var (r, c) in occupiedCells)
         {
@@ -34,14 +29,14 @@ public static class VehicleUtilities
             }
 
             // Check for collisions
-            if (vehiclesToCheck.Any(v => GetOccupiedCells(v).Any(cell => cell.row == r && cell.col == c)))
+            if (vehiclesToCheck.Any(v => v.GetOccupiedCells().Any(cell => cell.row == r && cell.col == c)))
                 return false;
         }
 
         return true;
     }
 
-    public static List<(int row, int col)> GetOccupiedCells(Vehicle vehicle)
+    private static List<(int row, int col)> GetOccupiedCells(this Vehicle vehicle)
     {
         var cells = new List<(int, int)>();
         if (vehicle.Orientation == 'H')
