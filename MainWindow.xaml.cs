@@ -272,12 +272,11 @@ public partial class MainWindow : Window
         {
             "Red" => "#FF0000",
             "Cyan" => "#00FFFF",
-            "Yellow" => "#FFFF00",
-            "Purple" => "#800080",
+            "Yellow" => "#E9FF8C",
+            "Purple" => "#9962D8",
             "Green" => "#38F546", // New light green
             "Blue" => "#0000FF",
-            "Orange" => "#FFA500",
-            "Brown" => "#A52A2A",
+            "Brown" => "#995E3F",
             "Black" => "#000000",
             "White" => "#FFFFFF",
             _ => "#CCCCCC"
@@ -619,7 +618,7 @@ public partial class MainWindow : Window
 
     private static string GetNextColor(string currentColor)
     {
-        var colors = new[] { "Cyan", "Yellow", "Purple", "Green", "Blue", "Orange", "Brown", "Black", "White" };
+        var colors = new[] { "Cyan", "Yellow", "Purple", "Green", "Blue", "Brown", "Black", "White" };
         var currentIndex = Array.IndexOf(colors, currentColor);
         var nextIndex = (currentIndex + 1) % colors.Length;
         return colors[nextIndex];
@@ -903,9 +902,9 @@ public partial class MainWindow : Window
         RefreshBoardDisplay();
     }
 
-    private static Brush GetVehicleTextColor(string colorHex)
+    private static SolidColorBrush GetVehicleTextColor(string colorHex)
     {
-        var darkColors = new[] { "#000000", "#0000FF", "#FF0000", "#800080", "#A52A2A" };
+        var darkColors = new[] { "#000000", "#0000FF", "#FF0000", "#800080", "#A52A2A", "#995E3F" };
         return darkColors.Contains(colorHex) ? Brushes.White : Brushes.Black;
     }
 }
