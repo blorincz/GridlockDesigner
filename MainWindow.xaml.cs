@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace GridlockDesigner;
 
@@ -17,9 +18,14 @@ public partial class MainWindow : Window
     private List<Vehicle> _vehicles = [];
     private List<Move>? _currentSolution;
     private int _currentMoveIndex = -1;
-    private string _selectedVehicleType = "";
     private Vehicle? _draggedVehicle;
     private readonly ObservableCollection<SolutionItem> _solutionItems = [];
+    private bool _isPlayMode = false;
+    private int _moveCount = 0;
+    private DateTime _gameStartTime;
+    private readonly DispatcherTimer _gameTimer = new();
+    private bool _isDraggingVehicle = false;
+    private Point _dragStartPosition;
 
     public MainWindow()
     {
@@ -28,6 +34,10 @@ public partial class MainWindow : Window
         DragEnter += MainWindow_DragEnter;
         PreviewDragOver += MainWindow_PreviewDragOver;
         QueryCursor += MainWindow_QueryCursor;
+
+        // Initialize game timer (but don't start it yet)
+        _gameTimer.Interval = TimeSpan.FromSeconds(1);
+        _gameTimer.Tick += GameTimer_Tick;
 
         _dbContext = new AppDbContext();
 
@@ -43,11 +53,11 @@ public partial class MainWindow : Window
                 {
                     Title = "Sample Level",
                     CreatedDate = DateTime.Now,
-                    Vehicles = new List<Vehicle>
-                {
+                    Vehicles =
+                [
                     new() { Color = "Red", Orientation = 'H', Length = 2, Row = 2, Col = 0 },
                     new() { Color = "Yellow", Orientation = 'H', Length = 3, Row = 0, Col = 0 }
-                }
+                ]
                 };
                 _dbContext.BoardStates.Add(sampleLevel);
                 _dbContext.SaveChanges();
@@ -61,6 +71,7 @@ public partial class MainWindow : Window
 
         InitializeBoard();
         LoadSavedPuzzles();
+        UpdatePlayModeButtonState();
     }
 
     private void InitializeBoard()
@@ -102,6 +113,15 @@ public partial class MainWindow : Window
         {
             e.Cursor = CursorUtilities.GetVehicleCursor(_draggedVehicle);
             e.Handled = true;
+        }
+    }
+
+    private void GameTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_isPlayMode)
+        {
+            var elapsed = DateTime.Now - _gameStartTime;
+            txtGameTime.Text = $"Time: {elapsed:mm\\:ss}";
         }
     }
 
@@ -150,6 +170,8 @@ public partial class MainWindow : Window
 
             RefreshBoardDisplay();
         }
+
+        UpdatePlayModeButtonState();
     }
 
     private void VehicleCanvas_DragOver(object sender, DragEventArgs e)
@@ -180,11 +202,14 @@ public partial class MainWindow : Window
             _vehicles = selectedState.Vehicles.Select(v => v.Clone()).ToList();
             RefreshBoardDisplay();
             _currentSolution = null;
-            _currentMoveIndex = -1;
+            _solutionItems.Clear();
             lstSolution.ItemsSource = null;
             txtSolutionInfo.Text = "";
+            UpdatePlayModeButtonState();
+            ShowMessage($"Loaded: {selectedState.Title}");
         }
     }
+
 
     // Button Click Events
 
@@ -192,7 +217,6 @@ public partial class MainWindow : Window
     {
         if (sender is Border border && border.Tag is string tag)
         {
-            _selectedVehicleType = tag;
             var vehicle = CreateVehicleFromType(tag);
 
             if (vehicle != null)
@@ -330,9 +354,69 @@ public partial class MainWindow : Window
         _vehicles.Clear();
         RefreshBoardDisplay();
         _currentSolution = null;
-        _currentMoveIndex = -1;
+        _solutionItems.Clear();
         lstSolution.ItemsSource = null;
         txtSolutionInfo.Text = "";
+        UpdatePlayModeButtonState();
+        ShowMessage("Board cleared");
+    }
+
+    private void BtnPlayMode_Checked(object sender, RoutedEventArgs e)
+    {
+        _isPlayMode = true;
+        _moveCount = 0;
+        _gameStartTime = DateTime.Now;
+
+        // Start timer
+        _gameTimer.Start();
+
+        // Update UI panels
+        SolutionPanel.Visibility = Visibility.Collapsed;
+        PlayModePanel.Visibility = Visibility.Visible;
+
+        // Disable design tools
+        VehicleToolsPanel.IsEnabled = false;
+        ActionButtonsPanel.IsEnabled = false;
+        SaveLoadPanel.IsEnabled = false;
+
+        // Update play mode UI
+        txtGameStatus.Text = "Ready";
+        txtMoveCount.Text = "Moves: 0";
+        txtGameTime.Text = "Time: 00:00";
+
+        ShowMessage("Play mode started! Click and drag vehicles to move.");
+
+        // Ensure all vehicles have correct handlers
+        RefreshBoardDisplay();
+    }
+
+    private void BtnPlayMode_Unchecked(object? sender, RoutedEventArgs? e)
+    {
+        _isPlayMode = false;
+
+        // Stop timer
+        _gameTimer.Stop();
+
+        // End any ongoing drag
+        if (_isDraggingVehicle)
+        {
+            EndVehicleMove();
+        }
+
+        // Update UI panels
+        SolutionPanel.Visibility = Visibility.Visible;
+        PlayModePanel.Visibility = Visibility.Collapsed;
+
+        // Re-enable design tools
+        VehicleToolsPanel.IsEnabled = true;
+        ActionButtonsPanel.IsEnabled = true;
+        SaveLoadPanel.IsEnabled = true;
+
+        var timeElapsed = DateTime.Now - _gameStartTime;
+        ShowMessage($"Play mode ended. Moves: {_moveCount}, Time: {timeElapsed:mm\\:ss}");
+
+        // Restore designer mode handlers
+        RefreshBoardDisplay();
     }
 
     // Vehicle Interaction Methods
@@ -510,22 +594,35 @@ public partial class MainWindow : Window
         Canvas.SetLeft(vehicleBorder, vehicle.Col * 80);
         Canvas.SetTop(vehicleBorder, vehicle.Row * 80);
 
-        // Add right-click handler for color cycling (non-ambulance only)
-        if (!(vehicle.Color == "Red" && vehicle.Orientation == 'H'))
+        if (!_isPlayMode)
         {
-            vehicleBorder.MouseRightButtonDown += (s, e) =>
+            // Designer mode: color cycling and drag-drop
+            if (!(vehicle.Color == "Red" && vehicle.Orientation == 'H'))
             {
-                CycleVehicleColor(vehicle);
+                vehicleBorder.MouseRightButtonDown += (s, e) =>
+                {
+                    CycleVehicleColor(vehicle);
+                    e.Handled = true;
+                };
+            }
+
+            vehicleBorder.MouseLeftButtonDown += (s, e) =>
+            {
+                StartVehicleDrag(vehicle, vehicleBorder);
                 e.Handled = true;
             };
         }
-
-        // Add left-click handler for dragging existing vehicles
-        vehicleBorder.MouseLeftButtonDown += (s, e) =>
+        else
         {
-            StartVehicleDrag(vehicle, vehicleBorder);
-            e.Handled = true;
-        };
+            // Play mode: mouse-based movement
+            vehicleBorder.MouseLeftButtonDown += (s, e) =>
+            {
+                StartVehicleMove(vehicle, e.GetPosition(VehicleCanvas));
+                e.Handled = true;
+            };
+
+            vehicleBorder.Cursor = Cursors.Hand; // Show hand cursor for movable vehicles
+        }
 
         // Store vehicle ID for reference
         vehicleBorder.Tag = vehicle.Id;
@@ -579,6 +676,115 @@ public partial class MainWindow : Window
         return crossContainer;
     }
 
+    private void StartVehicleMove(Vehicle vehicle, Point mousePosition)
+    {
+        if (!_isPlayMode || _isDraggingVehicle) return;
+
+        _isDraggingVehicle = true;
+        _draggedVehicle = vehicle;
+        _dragStartPosition = mousePosition;
+
+        // Capture mouse to get events even when outside the vehicle
+        VehicleCanvas.CaptureMouse();
+
+        // Visual feedback: make vehicle semi-transparent while dragging
+        var vehicleBorder = VehicleCanvas.Children
+            .OfType<Border>()
+            .FirstOrDefault(b => b.Tag as string == vehicle.Id);
+
+        if (vehicleBorder != null)
+        {
+            vehicleBorder.Opacity = 0.7;
+        }
+
+        txtGameStatus.Text = $"Moving: {GetVehicleDisplayName(vehicle.Id)}";
+    }
+
+    private void VehicleCanvas_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isPlayMode || !_isDraggingVehicle || _draggedVehicle == null) return;
+
+        var currentPosition = e.GetPosition(VehicleCanvas);
+        var deltaX = currentPosition.X - _dragStartPosition.X;
+        var deltaY = currentPosition.Y - _dragStartPosition.Y;
+
+        // Determine movement direction based on vehicle orientation
+        if (_draggedVehicle.Orientation == 'H')
+        {
+            // Horizontal vehicles only move left/right
+            int cellDelta = (int)(deltaX / 80); // 80px per cell
+
+            if (cellDelta != 0)
+            {
+                // Try to move the vehicle
+                string direction = cellDelta > 0 ? "right" : "left";
+                int spaces = Math.Abs(cellDelta);
+
+                // Snap to grid: only move if we've moved at least half a cell
+                if (spaces >= 1)
+                {
+                    // Check if move is valid
+                    if (IsValidMove(_draggedVehicle, direction, spaces))
+                    {
+                        // Apply move
+                        ExecuteMove(_draggedVehicle, direction, spaces);
+                        _dragStartPosition = currentPosition; // Reset start position
+                    }
+                }
+            }
+        }
+        else // Vertical vehicles
+        {
+            // Vertical vehicles only move up/down
+            int cellDelta = (int)(deltaY / 80); // 80px per cell
+
+            if (cellDelta != 0)
+            {
+                string direction = cellDelta > 0 ? "down" : "up";
+                int spaces = Math.Abs(cellDelta);
+
+                if (spaces >= 1)
+                {
+                    if (IsValidMove(_draggedVehicle, direction, spaces))
+                    {
+                        ExecuteMove(_draggedVehicle, direction, spaces);
+                        _dragStartPosition = currentPosition;
+                    }
+                }
+            }
+        }
+    }
+
+    private void VehicleCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isPlayMode || !_isDraggingVehicle) return;
+
+        EndVehicleMove();
+    }
+
+    private void EndVehicleMove()
+    {
+        _isDraggingVehicle = false;
+
+        // Restore vehicle opacity
+        if (_draggedVehicle != null)
+        {
+            var vehicleBorder = VehicleCanvas.Children
+                .OfType<Border>()
+                .FirstOrDefault(b => b.Tag as string == _draggedVehicle.Id);
+
+            if (vehicleBorder != null)
+            {
+                vehicleBorder.Opacity = 1.0;
+            }
+        }
+
+        _draggedVehicle = null;
+        VehicleCanvas.ReleaseMouseCapture();
+
+        txtGameStatus.Text = "Ready";
+    }
+
     // Board Logic Methods
 
     private void RefreshBoardDisplay()
@@ -608,6 +814,12 @@ public partial class MainWindow : Window
             var vehicleVisual = CreateVehicleVisual(vehicle);
             VehicleCanvas.Children.Add(vehicleVisual);
         }
+
+        // Update play mode button state after refresh
+        if (!_isPlayMode)
+        {
+            UpdatePlayModeButtonState();
+        }
     }
 
     private void ApplyMove(Move move, bool reverse)
@@ -625,6 +837,157 @@ public partial class MainWindow : Window
         {
             if (move.Direction == "up") vehicle.Row -= spaces;
             else if (move.Direction == "down") vehicle.Row += spaces;
+        }
+    }
+
+    private bool IsValidMove(Vehicle vehicle, string direction, int spaces = 1)
+    {
+        if (vehicle.Orientation == 'H')
+        {
+            if (direction == "left")
+            {
+                // Check if can move left
+                int newCol = vehicle.Col - spaces;
+                if (newCol < 0) return false;
+
+                // Check for collisions
+                var occupiedCells = vehicle.GetOccupiedCells();
+                for (int i = 1; i <= spaces; i++)
+                {
+                    int checkCol = vehicle.Col - i;
+                    if (_vehicles.Any(v => v != vehicle && v.GetOccupiedCells().Any(c => c.row == vehicle.Row && c.col == checkCol)))
+                        return false;
+                }
+            }
+            else if (direction == "right")
+            {
+                // Check if can move right
+                int newCol = vehicle.Col + spaces;
+                if (newCol + vehicle.Length - 1 >= 6) return false;
+
+                // Check for collisions
+                var occupiedCells = vehicle.GetOccupiedCells();
+                for (int i = 1; i <= spaces; i++)
+                {
+                    int checkCol = vehicle.Col + vehicle.Length - 1 + i;
+                    if (_vehicles.Any(v => v != vehicle && v.GetOccupiedCells().Any(c => c.row == vehicle.Row && c.col == checkCol)))
+                        return false;
+                }
+            }
+        }
+        else // Vertical
+        {
+            if (direction == "up")
+            {
+                // Check if can move up
+                int newRow = vehicle.Row - spaces;
+                if (newRow < 0) return false;
+
+                // Check for collisions
+                for (int i = 1; i <= spaces; i++)
+                {
+                    int checkRow = vehicle.Row - i;
+                    if (_vehicles.Any(v => v != vehicle && v.GetOccupiedCells().Any(c => c.row == checkRow && c.col == vehicle.Col)))
+                        return false;
+                }
+            }
+            else if (direction == "down")
+            {
+                // Check if can move down
+                int newRow = vehicle.Row + spaces;
+                if (newRow + vehicle.Length - 1 >= 6) return false;
+
+                // Check for collisions
+                for (int i = 1; i <= spaces; i++)
+                {
+                    int checkRow = vehicle.Row + vehicle.Length - 1 + i;
+                    if (_vehicles.Any(v => v != vehicle && v.GetOccupiedCells().Any(c => c.row == checkRow && c.col == vehicle.Col)))
+                        return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private void ExecuteMove(Vehicle vehicle, string direction, int spaces)
+    {
+        if (!_isPlayMode) return;
+
+        // Apply the move
+        if (vehicle.Orientation == 'H')
+        {
+            if (direction == "left")
+                vehicle.Col -= spaces;
+            else if (direction == "right")
+                vehicle.Col += spaces;
+        }
+        else // Vertical
+        {
+            if (direction == "up")
+                vehicle.Row -= spaces;
+            else if (direction == "down")
+                vehicle.Row += spaces;
+        }
+
+        _moveCount++;
+        txtMoveCount.Text = $"Moves: {_moveCount}";
+
+        RefreshBoardDisplay();
+
+        // Check win condition
+        CheckWinCondition();
+    }
+
+    private void CheckWinCondition()
+    {
+        var ambulance = _vehicles.FirstOrDefault(v => v.Color == "Red" && v.Orientation == 'H');
+        if (ambulance != null)
+        {
+            // Check if ambulance is at the exit (occupies C5 and C6)
+            var occupiedCells = ambulance.GetOccupiedCells();
+            if (occupiedCells.Any(c => c.col == 4) && occupiedCells.Any(c => c.col == 5))
+            {
+                var timeElapsed = DateTime.Now - _gameStartTime;
+
+                _gameTimer?.Stop();
+
+                MessageBox.Show($"🎉 PUZZLE SOLVED! 🎉\n\nMoves: {_moveCount}\nTime: {timeElapsed:mm\\:ss}\n\nCongratulations!");
+
+                // Exit play mode
+                btnPlayMode.IsChecked = false;
+                BtnPlayMode_Unchecked(null, null);
+            }
+        }
+    }
+
+    private void ShowMessage(string message, bool isError = false)
+    {
+        txtMessage.Text = message;
+        MessageArea.Background = isError ? Brushes.LightPink : Brushes.LightYellow;
+        MessageArea.BorderBrush = isError ? Brushes.Red : Brushes.Goldenrod;
+        MessageArea.Visibility = Visibility.Visible;
+    }
+
+    private void ClearMessage()
+    {
+        MessageArea.Visibility = Visibility.Collapsed;
+        txtMessage.Text = "";
+    }
+
+    private void UpdatePlayModeButtonState()
+    {
+        // Enable play mode button only if there's an ambulance on the board
+        bool hasAmbulance = _vehicles.Any(v => v.Color == "Red" && v.Orientation == 'H');
+        btnPlayMode.IsEnabled = hasAmbulance;
+
+        if (!hasAmbulance)
+        {
+            ShowMessage("Add an ambulance to enable play mode", true);
+        }
+        else
+        {
+            ClearMessage();
         }
     }
 

@@ -36,7 +36,7 @@ public static class VehicleUtilities
         return true;
     }
 
-    private static List<(int row, int col)> GetOccupiedCells(this Vehicle vehicle)
+    public static List<(int row, int col)> GetOccupiedCells(this Vehicle vehicle)
     {
         var cells = new List<(int, int)>();
         if (vehicle.Orientation == 'H')

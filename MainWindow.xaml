@@ -22,71 +22,115 @@
         <!-- Left Panel - Tools -->
         <Border Grid.Column="0" Background="LightGray" Padding="10">
             <StackPanel>
-                <TextBlock Text="Drag Vehicles to Board" FontWeight="Bold" Margin="0,0,0,10"/>
+                <TextBlock Text="Design Tools" FontWeight="Bold" Margin="0,0,0,10"/>
 
-                <!-- Horizontal Car (2x1) -->
-                <Border BorderBrush="Black" BorderThickness="1" Background="Cyan" 
-                Margin="0,5" Width="60" Height="30" Cursor="Hand"
-                MouseLeftButtonDown="VehicleButton_MouseLeftButtonDown" Tag="H,2">
-                    <TextBlock Text="Car" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"/>
-                </Border>
+                <!-- Vehicle Tools Section -->
+                <StackPanel x:Name="VehicleToolsPanel">
+                    <TextBlock Text="Drag Vehicles to Board" Margin="0,0,0,5"/>
 
-                <!-- Vertical Car (1x2) -->
-                <Border BorderBrush="Black" BorderThickness="1" Background="Cyan" 
-                Margin="0,5" Width="30" Height="60" Cursor="Hand"
-                MouseLeftButtonDown="VehicleButton_MouseLeftButtonDown" Tag="V,2">
-                    <TextBlock Text="Car" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"
-                       RenderTransformOrigin="0.5,0.5">
-                        <TextBlock.RenderTransform>
-                            <RotateTransform Angle="90"/>
-                        </TextBlock.RenderTransform>
-                    </TextBlock>
-                </Border>
+                    <!-- Horizontal Car (2x1) -->
+                    <Border BorderBrush="Black" BorderThickness="1" Background="Cyan" 
+                    Margin="0,5" Width="60" Height="30" Cursor="Hand"
+                    MouseLeftButtonDown="VehicleButton_MouseLeftButtonDown" Tag="H,2">
+                        <TextBlock Text="Car" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"/>
+                    </Border>
 
-                <!-- Horizontal Truck (3x1) -->
-                <Border BorderBrush="Black" BorderThickness="1" Background="Yellow" 
-                Margin="0,5" Width="90" Height="30" Cursor="Hand"
-                MouseLeftButtonDown="VehicleButton_MouseLeftButtonDown" Tag="H,3">
-                    <TextBlock Text="Truck" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"/>
-                </Border>
+                    <!-- Vertical Car (1x2) -->
+                    <Border BorderBrush="Black" BorderThickness="1" Background="Cyan" 
+                    Margin="0,5" Width="30" Height="60" Cursor="Hand"
+                    MouseLeftButtonDown="VehicleButton_MouseLeftButtonDown" Tag="V,2">
+                        <TextBlock Text="Car" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"
+                           RenderTransformOrigin="0.5,0.5">
+                            <TextBlock.RenderTransform>
+                                <RotateTransform Angle="90"/>
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
+                    </Border>
 
-                <!-- Vertical Truck (1x3) -->
-                <Border BorderBrush="Black" BorderThickness="1" Background="Yellow" 
-                Margin="0,5" Width="30" Height="90" Cursor="Hand"
-                MouseLeftButtonDown="VehicleButton_MouseLeftButtonDown" Tag="V,3">
-                    <TextBlock Text="Truck" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"
-                       RenderTransformOrigin="0.5,0.5">
-                        <TextBlock.RenderTransform>
-                            <RotateTransform Angle="90"/>
-                        </TextBlock.RenderTransform>
-                    </TextBlock>
-                </Border>
+                    <!-- Horizontal Truck (3x1) -->
+                    <Border BorderBrush="Black" BorderThickness="1" Background="Yellow" 
+                    Margin="0,5" Width="90" Height="30" Cursor="Hand"
+                    MouseLeftButtonDown="VehicleButton_MouseLeftButtonDown" Tag="H,3">
+                        <TextBlock Text="Truck" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"/>
+                    </Border>
 
-                <!-- Ambulance (2x1 with Red Cross) -->
-                <Border BorderBrush="Black" BorderThickness="1" Background="White" 
-                        Margin="0,5" Width="60" Height="30" Cursor="Hand"
-                        MouseLeftButtonDown="VehicleButton_MouseLeftButtonDown" 
-                        Tag="H,2,Ambulance">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Grid Width="16" Height="16" Margin="0,0,3,0">
-                            <Ellipse Fill="Red" Width="16" Height="16"/>
-                            <Rectangle Fill="White" Width="10" Height="2" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <Rectangle Fill="White" Width="2" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
+                    <!-- Vertical Truck (1x3) -->
+                    <Border BorderBrush="Black" BorderThickness="1" Background="Yellow" 
+                    Margin="0,5" Width="30" Height="90" Cursor="Hand"
+                    MouseLeftButtonDown="VehicleButton_MouseLeftButtonDown" Tag="V,3">
+                        <TextBlock Text="Truck" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"
+                           RenderTransformOrigin="0.5,0.5">
+                            <TextBlock.RenderTransform>
+                                <RotateTransform Angle="90"/>
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
+                    </Border>
+
+                    <!-- Ambulance (2x1 with Red Cross) -->
+                    <Border BorderBrush="Black" BorderThickness="1" Background="White" 
+                            Margin="0,5" Width="60" Height="30" Cursor="Hand"
+                            MouseLeftButtonDown="VehicleButton_MouseLeftButtonDown" 
+                            Tag="H,2,Ambulance">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="16" Height="16" Margin="0,0,3,0">
+                                <Ellipse Fill="Red" Width="16" Height="16"/>
+                                <Rectangle Fill="White" Width="10" Height="2" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Rectangle Fill="White" Width="2" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
 
                 <Separator Margin="0,20,0,10"/>
 
-                <Button x:Name="btnClear" Content="Clear Board" Height="30" Margin="0,5" Click="BtnClear_Click"/>
-                <Button x:Name="btnSolve" Content="Solve Puzzle" Height="30" Margin="0,5" Click="BtnSolve_Click"/>
+                <!-- Action Buttons -->
+                <StackPanel x:Name="ActionButtonsPanel">
+                    <Button x:Name="btnClear" Content="Clear Board" Height="30" Margin="0,5" Click="BtnClear_Click"/>
+                    <Button x:Name="btnSolve" Content="Solve Puzzle" Height="30" Margin="0,5" Click="BtnSolve_Click"/>
+                </StackPanel>
 
-                <StackPanel Margin="0,20,0,0">
+                <!-- Save/Load Section -->
+                <StackPanel x:Name="SaveLoadPanel" Margin="0,20,0,0">
                     <TextBlock Text="Save/Load" FontWeight="Bold" Margin="0,0,0,10"/>
                     <TextBox x:Name="txtPuzzleTitle" Text="Level 1" Margin="0,0,0,5"/>
                     <Button x:Name="btnSave" Content="Save Puzzle" Height="30" Margin="0,5" Click="BtnSave_Click"/>
                     <ComboBox x:Name="cmbSavedPuzzles" Height="30" Margin="0,5" SelectionChanged="CmbSavedPuzzles_SelectionChanged"/>
                     <Button x:Name="btnDelete" Content="Delete Puzzle" Height="30" Margin="0,5" Click="BtnDelete_Click"/>
+                </StackPanel>
+
+                <!-- Game Mode Section -->
+                <StackPanel Margin="0,20,0,0">
+                    <TextBlock Text="Game Mode" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                    <!-- Play Mode Button with Glow Effect -->
+                    <ToggleButton x:Name="btnPlayMode" Content="Play Mode" Height="35" Margin="0,5"
+                          Checked="BtnPlayMode_Checked" Unchecked="BtnPlayMode_Unchecked">
+                        <ToggleButton.Style>
+                            <Style TargetType="ToggleButton">
+                                <Setter Property="Background" Value="LightBlue"/>
+                                <Setter Property="BorderBrush" Value="DarkBlue"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter Property="Effect">
+                                            <Setter.Value>
+                                                <DropShadowEffect BlurRadius="10" ShadowDepth="0" Color="Gold"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter Property="Background" Value="Gold"/>
+                                        <Setter Property="BorderBrush" Value="DarkGoldenrod"/>
+                                        <Setter Property="Foreground" Value="Black"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ToggleButton.Style>
+                    </ToggleButton>
+
+                    <!-- Message Area -->
+                    <Border x:Name="MessageArea" Background="LightYellow" BorderBrush="Goldenrod" 
+                    BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,10,0,0"
+                    Visibility="Collapsed">
+                        <TextBlock x:Name="txtMessage" Text="" TextWrapping="Wrap" FontSize="11"/>
+                    </Border>
                 </StackPanel>
             </StackPanel>
         </Border>
@@ -127,50 +171,73 @@
                         AllowDrop="True"
                         DragOver="VehicleCanvas_DragOver"
                         DragLeave="VehicleCanvas_DragLeave"
-                        Drop="VehicleCanvas_Drop"/>
+                        Drop="VehicleCanvas_Drop"
+                        MouseMove="VehicleCanvas_MouseMove"
+                        MouseLeftButtonUp="VehicleCanvas_MouseLeftButtonUp"/>
             </Grid>
         </Border>
 
-        <!-- Right Panel - Solution -->
-        <Border Grid.Column="2" Background="WhiteSmoke" Margin="10">
+        <!-- Right Panel -->
+        <Border Grid.Column="2" Background="WhiteSmoke" Padding="10">
             <StackPanel>
-                <TextBlock Text="Solution" FontWeight="Bold" Margin="0,0,0,10"/>
-                <Border BorderBrush="LightGray" BorderThickness="1" Margin="0,0,0,10">
-                    <ItemsControl x:Name="lstSolution" 
-                  ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                  ItemsSource="{Binding}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Text}" 
-                          Padding="5,2"
-                          Background="Transparent">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontWeight" Value="Normal"/>
-                                            <Setter Property="Background" Value="Transparent"/>
-                                            <Setter Property="Foreground" Value="Black"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsCurrent}" Value="True">
-                                                    <Setter Property="FontWeight" Value="Bold"/>
-                                                    <Setter Property="Background" Value="LightBlue"/>
-                                                    <Setter Property="Foreground" Value="DarkBlue"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </Border>
+                <!-- Solution Panel (Visible in Design Mode) -->
+                <StackPanel x:Name="SolutionPanel">
+                    <TextBlock Text="Solution" FontWeight="Bold" Margin="0,0,0,10"/>
 
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Button x:Name="btnPrev" Content="◀ Previous" Width="80" Margin="5" Click="BtnPrev_Click"/>
-                    <Button x:Name="btnNext" Content="Next ▶" Width="80" Margin="5" Click="BtnNext_Click"/>
+                    <Border BorderBrush="LightGray" BorderThickness="1" Margin="0,0,0,10">
+                        <ItemsControl x:Name="lstSolution" 
+                          ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Text}" 
+                                  Padding="5,2"
+                                  Background="Transparent">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Normal"/>
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="Foreground" Value="Black"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                        <Setter Property="Background" Value="LightBlue"/>
+                                                        <Setter Property="Foreground" Value="DarkBlue"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button x:Name="btnPrev" Content="◀ Previous" Width="80" Margin="5" Click="BtnPrev_Click"/>
+                        <Button x:Name="btnNext" Content="Next ▶" Width="80" Margin="5" Click="BtnNext_Click"/>
+                    </StackPanel>
+                    <Button x:Name="btnResetView" Content="Reset View" Height="30" Margin="0,10" Click="BtnResetView_Click"/>
+
+                    <TextBlock x:Name="txtSolutionInfo" Margin="0,20,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
-                <Button x:Name="btnResetView" Content="Reset View" Height="30" Margin="0,10" Click="BtnResetView_Click"/>
 
-                <TextBlock x:Name="txtSolutionInfo" Margin="0,20,0,0" TextWrapping="Wrap"/>
+                <!-- Play Mode Panel (Visible in Play Mode) -->
+                <StackPanel x:Name="PlayModePanel" Visibility="Collapsed">
+                    <TextBlock Text="Play Mode" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                    <Border BorderBrush="LightGray" BorderThickness="1" Background="White" 
+                Padding="10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock x:Name="txtGameStatus" Text="Ready" FontWeight="Bold"/>
+                            <TextBlock x:Name="txtMoveCount" Text="Moves: 0"/>
+                            <TextBlock x:Name="txtGameTime" Text="Time: 00:00"/>
+                            <TextBlock Text="Controls:" FontWeight="Bold" Margin="0,10,0,5"/>
+                            <TextBlock Text="• Click and drag vehicles to move"/>
+                            <TextBlock Text="• Only legal moves allowed"/>
+                            <TextBlock Text="• ESC to cancel drag"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
             </StackPanel>
         </Border>
     </Grid>
