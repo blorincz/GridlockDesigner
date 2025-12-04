@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GridlockDesigner.Models;
+using System.IO;
 
 namespace GridlockDesigner.Data
 {
@@ -17,9 +18,11 @@ namespace GridlockDesigner.Data
 
         public DbSet<BoardState> BoardStates { get; set; }
 
+        private static string DatabasePath => "GridlockDesigner.db";
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlServer(@"Server=(localdb)\mssqllocaldb;Database=GridlockDesigner;Trusted_Connection=true;TrustServerCertificate=true");
+            optionsBuilder.UseSqlite($"Data Source={DatabasePath}");
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
